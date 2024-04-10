@@ -21,6 +21,24 @@ class Article(models.Model):
     Модель постов для сайта
 
     """    
+    class ArticleManager(models.Manager):
+
+        """
+
+        Кастомный менеджер для модели статей
+
+        """
+
+        def all(self):
+
+            """
+
+            Список статей (SQL запрос с фильтрацией для страницы списка статей)
+
+            """
+
+            return self.get_queryset().select_related('author', 'category').filter(status='published')
+
 
 
 
@@ -68,6 +86,7 @@ class Article(models.Model):
 
     fixed = models.BooleanField(verbose_name='Зафиксировано', default=False)
 
+    objects = ArticleManager()
 
 
     class Meta:
