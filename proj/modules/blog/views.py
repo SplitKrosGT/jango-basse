@@ -1,24 +1,230 @@
-from django.views.generic import ListView, DetailView, CreateView, UpdateView
+from django.http import JsonResponse
 
-
-from .models import Article
-from django.shortcuts import render
-from django.core.paginator import Paginator
-from .forms import ArticleCreateForm
-from .forms import  ArticleUpdateForm
-
-
-from django.views.generic import DeleteView
-
-from django.urls import reverse_lazy
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 
 from django.contrib.messages.views import SuccessMessageMixin
+
+from django.urls import reverse_lazy
+
+from django.shortcuts import render, redirect
+
+from django.core.paginator import Paginator
+
+from taggit.models import Tag
+
+
+
+from .models import Article, Category, Comment
+
+from .forms import ArticleCreateForm, ArticleUpdateForm, CommentCreateForm
+
 from ..services.mixins import AuthorRequiredMixin
 
 
+
+
+
+class ArticleListView(ListView):
+
+    model = Article
+
+    template_name = 'blog/articles_list.html'
+
+    context_object_name = 'articles'
+
+    paginate_by = 10
+
+
+
+    def get_context_data(self, **kwargs):
+
+        context = super().get_context_data(**kwargs)
+
+        context['title'] = 'Главная страница'
+
+        return context
+
+
+
+
+
+class ArticleDetailView(DetailView):
+
+    model = Article
+
+    template_name = 'blog/articles_detail.html'
+
+    context_object_name = 'article'
+
+    queryset = model.objects.detail()
+
+
+
+    def get_context_data(self, **kwargs):
+
+        context = super().get_context_data(**kwargs)
+
+        context['title'] = self.object.title
+
+        context['form'] = CommentCreateForm
+
+        return context
+
+
+
+
+
+class ArticleByCategoryListView(ListView):
+
+    model = Article
+
+    template_name = 'blog/articles_list.html'
+
+    context_object_name = 'articles'
+
+    category = None
+
+
+
+    def get_queryset(self):
+
+        self.category = Category.objects.get(slug=self.kwargs['slug'])
+
+        queryset = Article.objects.all().filter(category__slug=self.category.slug)
+
+        return queryset
+
+
+
+    def get_context_data(self, **kwargs):
+
+        context = super().get_context_data(**kwargs)
+
+        context['title'] = f'Статьи из категории: {self.category.title}' 
+
+        return context
+
+
+
+
+
+class ArticleByTagListView(ListView):
+
+    model = Article
+
+    template_name = 'blog/articles_list.html'
+
+    context_object_name = 'articles'
+
+    paginate_by = 10
+
+    tag = None
+
+
+
+    def get_queryset(self):
+
+        self.tag = Tag.objects.get(slug=self.kwargs['tag'])
+
+        queryset = Article.objects.all().filter(tags__slug=self.tag.slug)
+
+        return queryset
+
+
+
+    def get_context_data(self, **kwargs):
+
+        context = super().get_context_data(**kwargs)
+
+        context['title'] = f'Статьи по тегу: {self.tag.name}'
+
+        return context
+
+
+
+
+
+class ArticleCreateView(LoginRequiredMixin, CreateView):
+
+    """
+
+    Представление: создание материалов на сайте
+
+    """
+
+    model = Article
+
+    template_name = 'blog/articles_create.html'
+
+    form_class = ArticleCreateForm
+
+    login_url = 'home'
+
+
+
+    def get_context_data(self, **kwargs):
+
+        context = super().get_context_data(**kwargs)
+
+        context['title'] = 'Добавление статьи на сайт'
+
+        return context
+
+
+
+    def form_valid(self, form):
+
+        form.instance.author = self.request.user
+
+        form.save()
+
+        return super().form_valid(form)
+
+
+
+
+
+class ArticleUpdateView(AuthorRequiredMixin, SuccessMessageMixin, UpdateView):
+
+    """
+
+    Представление: обновления материала на сайте
+
+    """
+
+    model = Article
+
+    template_name = 'blog/articles_update.html'
+
+    context_object_name = 'article'
+
+    form_class = ArticleUpdateForm
+
+    login_url = 'home'
+
+    success_message = 'Материал был успешно обновлен'
+
+
+
+    def get_context_data(self, *, object_list=None, **kwargs):
+
+        context = super().get_context_data(**kwargs)
+
+        context['title'] = f'Обновление статьи: {self.object.title}'
+
+        return context
+
+    
+
+    def form_valid(self, form):
+
+        # form.instance.updater = self.request.user
+
+        form.save()
+
+        return super().form_valid(form)
 
 
 
@@ -50,43 +256,11 @@ class ArticleDeleteView(AuthorRequiredMixin, DeleteView):
 
         return context
 
-class ArticleCreateView(LoginRequiredMixin, CreateView):
-
-
-    """
-
-    Представление: создание материалов на сайте
-
-    """
-
-    model = Article
-
-    template_name = 'blog/articles_create.html'
-
-    form_class = ArticleCreateForm
-
-    login_url = 'home'
-
-
-    def get_context_data(self, **kwargs):
-
-        context = super().get_context_data(**kwargs)
-
-        context['title'] = 'Добавление статьи на сайт'
-
-        return context
 
 
 
-    def form_valid(self, form):
 
-        form.instance.author = self.request.user
-
-        form.save()
-
-        return super().form_valid(form)
-    
-def articles_list(request, page):
+def articles_list(request):
 
     articles = Article.objects.all()
 
@@ -103,117 +277,73 @@ def articles_list(request, page):
 
 
 
-class ArticleListView(ListView):
 
-    model = Article
+class CommentCreateView(LoginRequiredMixin, CreateView):
 
-    template_name = 'blog/articles_list.html'
+    model = Comment
 
-    context_object_name = 'articles'
-
-    paginate_by = 2
+    form_class = CommentCreateForm
 
 
 
-    def get_context_data(self, **kwargs):
+    def is_ajax(self):
 
-        context = super().get_context_data(**kwargs)
-
-        context['title'] = 'Главная страница'
-
-        return context
-    
-
-
-class ArticleDetailView(DetailView):
-
-    model = Article
-
-    template_name = 'blog/articles_detail.html'
-
-    context_object_name = 'article'
+        return self.request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
 
 
-    def get_context_data(self, **kwargs):
+    def form_invalid(self, form):
 
-        context = super().get_context_data(**kwargs)
+        if self.is_ajax():
 
-        context['title'] = self.object.title
+            return JsonResponse({'error': form.errors}, status=400)
 
-        return context
-
-     
+        return super().form_invalid(form)
 
 
-    def get_context_data(self, **kwargs):
-
-        context = super().get_context_data(**kwargs)
-
-        context['title'] = self.object.title
-
-        return context
-    
-
-
-
-
-class ArticleUpdateView(AuthorRequiredMixin, SuccessMessageMixin, UpdateView):
-
-
-
-    """
-
-    Представление: обновления материала на сайте
-
-    """
-
-    model = Article
-
-    template_name = 'blog/articles_update.html'
-
-    context_object_name = 'article'
-
-    form_class = ArticleUpdateForm
-    
-    login_url = 'home'
-
-    success_message = 'Материал был успешно обновлен'
-
-
-
-
-
-    def get_context_data(self, *, object_list=None, **kwargs):
-
-        context = super().get_context_data(**kwargs)
-
-        context['title'] = f'Обновление статьи: {self.object.title}'
-
-        return context
-
-    
 
     def form_valid(self, form):
 
-        # form.instance.updater = self.request.user
+        comment = form.save(commit=False)
 
-        form.save()
+        comment.article_id = self.kwargs.get('pk')
 
-        return super().form_valid(form)
-        
-class ArticleByCategoryListView(ListView):
-    model = Article
-    template_name = 'blog/articles_list.html'
-    context_object_name = 'articles'
-    category = None
+        comment.author = self.request.user
 
-    def get_queryset(self):
-        self.category = Category.objects.get(slug=self.kwargs['slug'])
-        queryset = Article.objects.all().filter(category__slug=self.category.slug)
-        return queryset
+        comment.parent_id = form.cleaned_data.get('parent')
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['title'] = f'Статьи из категории: {self.category.title}' 
-        return context
+        comment.save()
+
+
+
+        if self.is_ajax():
+
+            return JsonResponse({
+
+                'is_child': comment.is_child_node(),
+
+                'id': comment.id,
+
+                'author': comment.author.username,
+
+                'parent_id': comment.parent_id,
+
+                'time_create': comment.time_create.strftime('%Y-%b-%d %H:%M:%S'),
+
+                'avatar': comment.author.profile.avatar.url,
+
+                'content': comment.content,
+
+                'get_absolute_url': comment.author.profile.get_absolute_url()
+
+            }, status=200)
+
+
+
+        return redirect(comment.article.get_absolute_url())
+
+
+
+    def handle_no_permission(self):
+
+        return JsonResponse({'error': 'Необходимо авторизоваться для добавления комментариев'}, status=400)

@@ -30,7 +30,11 @@ ALLOWED_HOSTS = []
 
 # Application definition
 
+RECAPTCHA_PUBLIC_KEY = '6LfTUropAAAAALXyJxVSoKkeKQWzHsplUSNyHtdA'
+RECAPTCHA_PRIVATE_KEY = '6LfTUropAAAAALXyJxVSoKkeKQWzHsplUSNyHtdA'
+
 INSTALLED_APPS = [
+    
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -39,12 +43,16 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'modules.blog.apps.BlogConfig',
     'modules.system.apps.SystemConfig',
-
+    'django.contrib.sites',
     'mptt',
     'modules.services',
     'debug_toolbar',
+    'taggit',
+    'django_recaptcha',
 
 ]
+
+SITE_ID = 1
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

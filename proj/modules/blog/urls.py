@@ -1,7 +1,9 @@
 from django.urls import path
 
 
-from .views import ArticleListView, ArticleDetailView, ArticleByCategoryListView, articles_list, ArticleCreateView, ArticleUpdateView,  ArticleDeleteView
+from .views import ArticleListView, ArticleDetailView, ArticleByCategoryListView, articles_list, ArticleCreateView, ArticleUpdateView,  ArticleDeleteView, CommentCreateView, ArticleByTagListView
+
+ 
 
 
 
@@ -18,6 +20,10 @@ urlpatterns = [
     path('articles/<str:slug>/delete/', ArticleDeleteView.as_view(), name='articles_delete'),
     path('articles/<str:slug>/', ArticleDetailView.as_view(), name='articles_detail'),
     path('category/<str:slug>/', ArticleByCategoryListView.as_view(), name="articles_by_category"),
+    path('articles/<int:pk>/comments/create/', CommentCreateView.as_view(), name='comment_create_view'),
+    path('articles/tags/<str:tag>/', ArticleByTagListView.as_view(), name='articles_by_tags'),
+
+
 
 
 ]
